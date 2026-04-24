@@ -1,0 +1,159 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Chart Recommendation Audit</h2>
+  <p class="muted">Revision rapida de tipos sugeridos, policy aplicada y rationale en candidates recientes.</p>
+  <form method="get" class="inline-form">
+    <label for="days">Ventana:</label>
+    <select id="days" name="days">
+      <option value="7" {% if days == 7 %}selected{% endif %}>7 dias</option>
+      <option value="30" {% if days == 30 %}selected{% endif %}>30 dias</option>
+      <option value="90" {% if days == 90 %}selected{% endif %}>90 dias</option>
+    </select>
+    <label for="chart_type">Chart type:</label>
+    <select id="chart_type" name="chart_type">
+      <option value="">Todos</option>
+      {% for opt in chart_type_options %}
+      <option value="{{ opt }}" {% if filter_chart_type == opt %}selected{% endif %}>
+        {% if opt == "__unset__" %}Sin tipo{% else %}{{ opt }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <label for="chart_policy">Policy:</label>
+    <select id="chart_policy" name="chart_policy">
+      <option value="">Todas</option>
+      {% for opt in chart_policy_options %}
+      <option value="{{ opt }}" {% if filter_chart_policy == opt %}selected{% endif %}>
+        {% if opt == "__unset__" %}Sin policy{% else %}{{ opt }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit">Aplicar</button>
+    <a class="button subtle" href="/editorial/ui/chart-audit/export?{{ export_query }}">Exportar CSV</a>
+  </form>
+  <p class="muted">
+    Filtrados en ventana (hasta 2000): {{ filtered_total }}.
+    Tabla: primeras {{ recent_candidates|length }} filas (tope {{ table_row_cap }}).
+    Graficos y semaforo: sobre todos los filtrados (max 2000).
+  </p>
+</section>
+
+<section class="panel">
+  <h3>Semafono de calidad</h3>
+  {% set q = chart_quality %}
+  {% if q.sample_size == 0 %}
+  <p class="muted">Sin candidates en esta ventana: no hay metricas de calidad.</p>
+  {% elif q.health == "ok" %}
+  <p class="alert success">
+    Estado <strong>OK</strong>: bajo uso de fallback y rationales presentes en la muestra (ultimos {{ days }} dias, hasta 500 filas).
+  </p>
+  {% elif q.health == "warn" %}
+  <p class="alert warn">
+    Estado <strong>ATENCION</strong>: revisa fallback o candidates sin rationale antes de endurecer reglas.
+  </p>
+  {% elif q.health == "bad" %}
+  <p class="alert error">
+    Estado <strong>CRITICO</strong>: muchos fallbacks o falta de rationale; conviene revisar keywords, fuentes y prioridad tematica.
+  </p>
+  {% else %}
+  <p class="muted">Estado desconocido.</p>
+  {% endif %}
+  {% if q.sample_size > 0 %}
+  <table>
+    <tbody>
+      <tr><th>Muestra (candidates)</th><td>{{ q.sample_size }}</td></tr>
+      <tr><th>% con rationale que menciona fallback</th><td>{{ q.fallback_pct }}% ({{ q.fallback_count }})</td></tr>
+      <tr><th>% sin chart_rationale</th><td>{{ q.no_rationale_pct }}% ({{ q.no_rationale_count }})</td></tr>
+    </tbody>
+  </table>
+  <div class="chart-audit-subsection">
+    <h4>Top rationales</h4>
+    {% if q.top_rationales %}
+    <table>
+      <tbody>
+        {% for item in q.top_rationales %}
+        <tr><td class="muted">{{ item.count }}x</td><td>{{ item.text }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Sin rationales agrupables.</p>
+    {% endif %}
+  </div>
+  <div class="chart-audit-subsection">
+    <h4>Top reglas (por senales ligadas a estos candidates)</h4>
+    {% if q.top_rules %}
+    <table>
+      <tbody>
+        {% for item in q.top_rules %}
+        <tr><td class="muted">{{ item.count }}x</td><td>{{ item.slug }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Sin reglas asociadas en senales para esta muestra.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Distribucion de chart_type_suggested</h3>
+  {% if type_chart and type_chart.datasets %}
+  <div class="chart-wrap"><canvas id="chart-type-distribution"></canvas></div>
+  {% else %}
+  <p class="empty-state">Sin datos para distribucion por chart type.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Distribucion de chart_policy</h3>
+  {% if policy_chart and policy_chart.datasets %}
+  <div class="chart-wrap"><canvas id="chart-policy-distribution"></canvas></div>
+  {% else %}
+  <p class="empty-state">Sin datos para distribucion por policy.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Candidates recientes (auditoria)</h3>
+  {% if recent_candidates %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Titulo</th>
+        <th>Chart sugerido</th>
+        <th>Policy</th>
+        <th>Rationale</th>
+        <th>Fecha</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for candidate in recent_candidates %}
+      {% set spec = candidate.chart_spec_json or {} %}
+      <tr>
+        <td><a href="/editorial/ui/candidates/{{ candidate.id }}">{{ candidate.id }}</a></td>
+        <td>{{ candidate.title }}</td>
+        <td>{{ candidate.chart_type_suggested or "-" }}</td>
+        <td>{{ spec.get("chart_policy") or "-" }}</td>
+        <td class="insight">{{ candidate.effective_chart_rationale or "-" }}</td>
+        <td>{{ candidate.created_at | fmt_datetime }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay candidates recientes para auditar en esta ventana.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chartTypeDistribution = {{ type_chart | tojson }};
+  const chartPolicyDistribution = {{ policy_chart | tojson }};
+  if (chartTypeDistribution) renderBarChart("chart-type-distribution", chartTypeDistribution);
+  if (chartPolicyDistribution) renderBarChart("chart-policy-distribution", chartPolicyDistribution);
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Signals</h2>
+  <form method="get" class="filters">
+    <label>
+      Limite
+      <input type="number" name="limit" min="1" max="500" value="{{ limit }}" />
+    </label>
+    <button type="submit">Actualizar</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>Acciones</h3>
+  <form method="post" action="/editorial/ui/signals/run" class="inline-form">
+    <label>
+      limit_series
+      <input type="number" name="limit_series" min="1" value="200" />
+    </label>
+    <button type="submit">Run signals pipeline</button>
+  </form>
+  <form method="post" action="/editorial/ui/signals/simulate" class="inline-form">
+    <label>
+      series_id
+      <input type="number" name="series_id" min="1" required />
+    </label>
+    <button type="submit">Simulate signals</button>
+  </form>
+</section>
+
+<section class="panel">
+  {% if signals %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th>Regla</th>
+        <th>Candidate</th>
+        <th>Strength</th>
+        <th>Serie / Sparkline</th>
+        <th>Signal key</th>
+        <th>Explicacion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for signal in signals %}
+      <tr>
+        <td>{{ signal.id }}</td>
+        <td>{{ signal.created_at | fmt_datetime }}</td>
+        <td>{{ signal.signal_type }}</td>
+        <td>{{ signal.rule_id or "-" }}</td>
+        <td>
+          {% set candidate = candidates.get(signal.candidate_id) %}
+          {% if candidate %}
+          <a href="/editorial/ui/candidates/{{ candidate.id }}">{{ candidate.title }}</a>
+          {% else %}
+          {{ signal.candidate_id }}
+          {% endif %}
+        </td>
+        <td>{{ signal.strength | fmt_decimal }}</td>
+        <td>
+          <div
+            class="signal-sparkline-cell"
+            hx-get="/editorial/ui/signals/{{ signal.id }}/sparkline"
+            hx-trigger="load"
+            hx-swap="innerHTML"
+          >
+            <span class="muted">Cargando sparkline...</span>
+          </div>
+        </td>
+        <td>{{ signal.signal_key }}</td>
+        <td>{{ signal.explanation }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay signals para el criterio actual.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

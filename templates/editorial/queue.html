@@ -1,0 +1,103 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Review Queue</h2>
+  <form method="get" class="filters">
+    <label>
+      Estado
+      <select name="status">
+        <option value="">Todos</option>
+        {% for option in status_options %}
+        <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Score minimo
+      <input type="number" step="0.01" name="min_score" value="{{ filters.min_score or '' }}" />
+    </label>
+    <label>
+      Desde fecha
+      <input type="date" name="created_from" value="{{ filters.created_from }}" />
+    </label>
+    <label>
+      Limite
+      <input type="number" name="limit" min="1" max="500" value="{{ filters.limit }}" />
+    </label>
+    <button type="submit">Aplicar filtros</button>
+    <a class="button subtle" href="/editorial/ui/queue">Limpiar</a>
+  </form>
+</section>
+
+<section class="panel">
+  {% if candidates %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Titulo provisional</th>
+        <th>Insight principal</th>
+        <th>Chart sugerido</th>
+        <th>Score</th>
+        <th>Estado</th>
+        <th>Fuente/s</th>
+        <th>Creado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for candidate in candidates %}
+      <tr>
+        <td>{{ candidate.id }}</td>
+        <td>{{ candidate.title }}</td>
+        <td class="insight">{{ candidate.insight }}</td>
+        <td>
+          {% if candidate.chart_type_suggested %}
+            <strong>{{ candidate.chart_type_suggested }}</strong>
+            {% if candidate.effective_chart_rationale %}
+            <br />
+            <span class="muted">{{ candidate.effective_chart_rationale }}</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">-</span>
+          {% endif %}
+        </td>
+        <td>{{ candidate.score_total | fmt_decimal }}</td>
+        <td><span class="tag">{{ candidate.status }}</span></td>
+        <td>
+          {% set sources = sources_by_candidate.get(candidate.id, []) %}
+          {% if sources %}
+            {{ sources | join(", ") }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>{{ candidate.created_at | fmt_datetime }}</td>
+        <td>
+          <div class="row-actions">
+            <a class="button subtle" href="/editorial/ui/candidates/{{ candidate.id }}">Ver detalle</a>
+            <form method="post" action="/editorial/ui/candidates/{{ candidate.id }}/state">
+              <input type="hidden" name="from_view" value="queue" />
+              <button type="submit" name="action" value="shortlist">Shortlist</button>
+              <button type="submit" name="action" value="approve">Approve</button>
+              <button
+                type="submit"
+                name="action"
+                value="discard"
+                class="danger"
+                onclick="return confirm('Confirmar descarte del candidate {{ candidate.id }}?');"
+              >
+                Discard
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay candidates con los filtros actuales.</p>
+  {% endif %}
+</section>
+{% endblock %}

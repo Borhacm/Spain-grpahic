@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: editorial_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d editorial_data"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    # Tras cambiar variables en `.env`, recarga con: `docker compose up -d --force-recreate api`
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/editorial_data
+      SCHEDULER_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  scheduler:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/editorial_data
+      SCHEDULER_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: python -m app.tasks.scheduler_worker
+
+  public_frontend:
+    image: node:20-alpine
+    working_dir: /frontend
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_STORIES_API_BASE_URL: http://api:8000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_ANALYTICS_PROVIDER: none
+      NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ""
+      NEXT_PUBLIC_GA_MEASUREMENT_ID: ""
+      NEXT_PUBLIC_LEGAL_ENTITY_NAME: ""
+      NEXT_PUBLIC_LEGAL_ENTITY_TAX_ID: ""
+      NEXT_PUBLIC_LEGAL_ENTITY_ADDRESS: ""
+      NEXT_PUBLIC_CONTACT_EMAIL: ""
+      NEXT_PUBLIC_CONTACT_DPO_EMAIL: ""
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public-frontend:/frontend
+    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000"
+
+volumes:
+  postgres_data:

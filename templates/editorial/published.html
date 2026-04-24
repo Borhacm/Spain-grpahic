@@ -1,0 +1,115 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Light CMS (entradas web)</h2>
+  <form method="get" class="filters">
+    <label>
+      Estado entrada web
+      <select name="status">
+        <option value="">Todos</option>
+        {% for option in public_story_status_options %}
+        <option value="{{ option }}" {% if selected_status == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Limite
+      <input type="number" name="limit" min="1" max="500" value="{{ limit }}" />
+    </label>
+    <button type="submit">Aplicar</button>
+    <a class="button subtle" href="/editorial/ui/published">Limpiar</a>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>Entradas editables (draft / scheduled / published)</h3>
+  {% if public_stories %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Titulo</th>
+        <th>Estado</th>
+        <th>Slug</th>
+        <th>Actualizada</th>
+        <th>Publicada</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for story in public_stories %}
+      <tr>
+        <td>{{ story.id }}</td>
+        <td>{{ story.title }}</td>
+        <td><span class="tag">{{ story.status }}</span></td>
+        <td><code>{{ story.slug }}</code></td>
+        <td>{{ story.updated_at | fmt_datetime }}</td>
+        <td>{{ story.published_at | fmt_datetime }}</td>
+        <td>
+          <a class="button subtle" href="/editorial/ui/candidates/{{ story.candidate_id }}">
+            Editar entrada
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay entradas web para el criterio actual.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Histórico de envíos a publication targets</h3>
+  {% if published_items %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Candidate</th>
+        <th>Fecha</th>
+        <th>Target</th>
+        <th>Estado</th>
+        <th>Referencia externa</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in published_items %}
+      <tr>
+        <td>{{ item.id }}</td>
+        <td>
+          {% set candidate = candidate_map.get(item.candidate_id) %}
+          {% if candidate %}
+          <a href="/editorial/ui/candidates/{{ candidate.id }}">{{ candidate.title }}</a>
+          {% else %}
+          {{ item.candidate_id }}
+          {% endif %}
+        </td>
+        <td>{{ item.published_at | fmt_datetime }}</td>
+        <td>
+          {% set target = target_map.get(item.target_id) %}
+          {% if target %}
+            {{ target.name }} ({{ target.slug }})
+          {% else %}
+            {{ item.target_id }}
+          {% endif %}
+        </td>
+        <td><span class="tag">{{ item.status }}</span></td>
+        <td>
+          {% if item.url %}
+          <a href="{{ item.url }}" target="_blank" rel="noreferrer">Abrir URL</a>
+          {% elif item.external_id %}
+          {{ item.external_id }}
+          {% else %}
+          -
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay envíos registrados a targets.</p>
+  {% endif %}
+</section>
+{% endblock %}

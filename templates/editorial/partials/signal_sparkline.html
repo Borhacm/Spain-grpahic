@@ -1,0 +1,12 @@
+{% if series_label %}
+<div class="muted">{{ series_label }}</div>
+{% endif %}
+{% if state == "ok" and payload %}
+<div class="sparkline-wrap" data-sparkline='{{ payload | tojson }}'>
+  <canvas id="sparkline-{{ signal.id }}" width="120" height="30"></canvas>
+</div>
+{% elif state == "insufficient" %}
+<span class="muted" title="La serie asociada no tiene suficientes observaciones para sparkline">Datos insuficientes</span>
+{% else %}
+<span class="muted">N/A</span>
+{% endif %}

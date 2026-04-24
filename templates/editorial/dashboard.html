@@ -1,0 +1,104 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Editorial Dashboard</h2>
+  <p class="muted">Overview diario de actividad, calidad y trazabilidad editorial.</p>
+  <form method="get" class="inline-form">
+    <label for="window_days">Ventana:</label>
+    <select id="window_days" name="window_days">
+      <option value="7" {% if window_days == 7 %}selected{% endif %}>7 dias</option>
+      <option value="30" {% if window_days == 30 %}selected{% endif %}>30 dias</option>
+      <option value="90" {% if window_days == 90 %}selected{% endif %}>90 dias</option>
+    </select>
+    <label for="bucket">Agrupacion:</label>
+    <select id="bucket" name="bucket">
+      <option value="day" {% if bucket == "day" %}selected{% endif %}>Diaria</option>
+      <option value="week" {% if bucket == "week" %}selected{% endif %}>Semanal</option>
+    </select>
+    <button type="submit">Aplicar</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>KPIs clave</h3>
+  <table>
+    <tbody>
+      <tr><th>Candidates nuevos (7 dias)</th><td>{{ kpis.new_7d }}</td></tr>
+      <tr><th>Candidates nuevos (30 dias)</th><td>{{ kpis.new_30d }}</td></tr>
+      <tr><th>Aceptados (total)</th><td>{{ kpis.accepted_total }}</td></tr>
+      <tr><th>Descartados (total)</th><td>{{ kpis.discarded_total }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h3>Actividad en el tiempo</h3>
+  <p class="muted">Ultimos {{ window_days }} dias - Agrupacion {% if bucket == "week" %}semanal{% else %}diaria{% endif %}</p>
+  {% if daily_chart and daily_chart.datasets %}
+  <div class="chart-wrap"><canvas id="activity-time-chart"></canvas></div>
+  {% else %}
+  <p class="empty-state">Sin datos suficientes para este grafico.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Por regla</h3>
+  {% if rule_chart and rule_chart.datasets %}
+  <div class="chart-wrap"><canvas id="rule-performance-chart"></canvas></div>
+  {% if rule_chart.acceptance_ratio %}
+  <p class="muted">
+    Ratio de aceptacion por regla:
+    {% for label in rule_chart.labels %}
+    {{ label }} {{ rule_chart.acceptance_ratio[loop.index0] }}%{% if not loop.last %}, {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+  {% else %}
+  <p class="empty-state">No hay reglas/candidates para construir este grafico.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Por fuente</h3>
+  {% if source_chart and source_chart.datasets %}
+  <div class="chart-wrap"><canvas id="source-chart"></canvas></div>
+  {% else %}
+  <p class="empty-state">Sin datos de fuentes por mostrar.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="heading-row">
+    <h3>Scheduler - Ultimas ejecuciones</h3>
+    <button
+      type="button"
+      class="button subtle"
+      hx-get="/editorial/ui/dashboard/scheduler-runs"
+      hx-target="#scheduler-runs-table"
+      hx-swap="innerHTML"
+    >
+      Refrescar ahora
+    </button>
+  </div>
+  <p class="muted">Monitor de jobs clave (ingesta y procesos editoriales) sin entrar al contenedor scheduler.</p>
+  <div
+    id="scheduler-runs-table"
+    hx-get="/editorial/ui/dashboard/scheduler-runs"
+    hx-trigger="every 45s"
+    hx-swap="innerHTML"
+  >
+    {% include "editorial/partials/scheduler_runs_table.html" %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dailyChartData = {{ daily_chart | tojson }};
+  const ruleChartData = {{ rule_chart | tojson }};
+  const sourceChartData = {{ source_chart | tojson }};
+  if (dailyChartData) renderLineChart("activity-time-chart", dailyChartData);
+  if (ruleChartData) renderBarChart("rule-performance-chart", ruleChartData);
+  if (sourceChartData) renderBarChart("source-chart", sourceChartData);
+</script>
+{% endblock %}

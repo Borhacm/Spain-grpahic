@@ -1,0 +1,287 @@
+{% extends "editorial/base.html" %}
+{% block content %}
+<section class="panel">
+  <div class="heading-row">
+    <h2>Candidate {{ candidate.id }}</h2>
+    <a class="button subtle" href="/editorial/ui/queue">Volver a queue</a>
+  </div>
+  <p><strong>Titulo:</strong> {{ candidate.title }}</p>
+  <p><strong>Estado:</strong> <span class="tag">{{ candidate.status }}</span></p>
+  <p><strong>Score total:</strong> {{ candidate.score_total | fmt_decimal }}</p>
+  <p><strong>Creado:</strong> {{ candidate.created_at | fmt_datetime }}</p>
+  <p><strong>Fuentes:</strong> {{ sources | join(", ") if sources else "-" }}</p>
+  {% if candidate.executive_summary %}
+  <p><strong>Executive summary:</strong> {{ candidate.executive_summary }}</p>
+  {% endif %}
+  {% if candidate.why_it_matters %}
+  <p><strong>Why it matters:</strong> {{ candidate.why_it_matters }}</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Data visualization</h3>
+  <p>
+    <strong>Chart type suggested:</strong>
+    {% if candidate.chart_type_suggested %}{{ candidate.chart_type_suggested }}{% else %}-{% endif %}
+  </p>
+  {% if candidate.effective_chart_rationale %}
+  <p class="muted">{{ candidate.effective_chart_rationale }}</p>
+  {% endif %}
+  {% if primary_series_id %}
+  <p><strong>Primary series:</strong> {{ primary_series_id }}</p>
+  {% endif %}
+  {% if candidate_chart_data %}
+  {% if candidate_chart_data.meta %}
+  <p class="muted">
+    {{ candidate_chart_data.meta.series_name }}
+    {% if candidate_chart_data.meta.unit %} ({{ candidate_chart_data.meta.unit }}){% endif %}
+    {% if candidate_chart_data.meta.source %} - Fuente: {{ candidate_chart_data.meta.source }}{% endif %}
+    {% if candidate_chart_data.meta.frequency %} - Frecuencia: {{ candidate_chart_data.meta.frequency }}{% endif %}
+  </p>
+  {% endif %}
+  <div class="chart-wrap"><canvas id="candidate-main-chart"></canvas></div>
+  {% else %}
+  <p class="empty-state">Sin datos suficientes para visualizar esta serie</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Narrative</h3>
+  <p><strong>Insight:</strong> {{ candidate.insight }}</p>
+</section>
+
+<section class="panel">
+  <h3>Acciones editoriales</h3>
+  <form method="post" action="/editorial/ui/candidates/{{ candidate.id }}/state" class="inline-form">
+    <input type="hidden" name="from_view" value="detail" />
+    <input type="text" name="reviewer" placeholder="reviewer (opcional)" />
+    <button type="submit" name="action" value="shortlist">Shortlist</button>
+    <button type="submit" name="action" value="approve">Approve</button>
+    <button
+      type="submit"
+      name="action"
+      value="discard"
+      class="danger"
+      onclick="return confirm('Confirmar descarte del candidate {{ candidate.id }}?');"
+    >
+      Discard
+    </button>
+  </form>
+  <form
+    method="post"
+    action="/editorial/ui/candidates/{{ candidate.id }}/send"
+    class="inline-form"
+    onsubmit="return confirm('Enviar candidate {{ candidate.id }} al publication target seleccionado?');"
+  >
+    <input type="hidden" name="from_view" value="detail" />
+    <label for="target">Publication target:</label>
+    <select id="target" name="target">
+      {% for target in publication_targets %}
+      <option value="{{ target.slug }}">{{ target.name }} ({{ target.slug }})</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Send to CMS</button>
+  </form>
+  <p class="muted">Publicaciones registradas para este candidate: {{ publication_count }}</p>
+</section>
+
+<section class="panel">
+  <h3>Publicar en la web (España en un gráfico / API pública)</h3>
+  <p class="muted">
+    Crea o actualiza <code>public_stories</code> (capa <code>/public/stories</code>). La primera vez el candidato debe estar en
+    <strong>accepted</strong>. No sustituye «Send to CMS».
+  </p>
+  {% if public_story %}
+  <p class="muted">
+    Historia pública vinculada: id <strong>{{ public_story.id }}</strong> · estado <span class="tag">{{ public_story.status }}</span>
+    · slug <code>{{ public_story.slug }}</code>
+    {% if public_story.published_at %}· publicada {{ public_story.published_at | fmt_datetime }}{% endif %}
+  </p>
+  {% endif %}
+  {% if can_publish_web %}
+  <form
+    method="post"
+    action="/editorial/ui/candidates/{{ candidate.id }}/publish-web"
+    class="publish-web-form"
+    onsubmit="return confirm('¿Confirmar publicación en la web para este candidate?');"
+  >
+    <input type="hidden" name="from_view" value="detail" />
+    <label>
+      Reviewer / publicado por (opcional)
+      <input type="text" name="reviewer" placeholder="nombre o email" />
+    </label>
+    <label>
+      Título
+      <input type="text" name="title" required value="{{ publish_defaults.title }}" maxlength="500" />
+    </label>
+    <label>
+      Subtítulo (opcional)
+      <input type="text" name="subtitle" value="{{ publish_defaults.subtitle }}" maxlength="2000" />
+    </label>
+    <label>
+      Dek / bajada (opcional)
+      <input type="text" name="dek" value="{{ publish_defaults.dek }}" maxlength="500" />
+    </label>
+    <label>
+      Cuerpo (Markdown)
+      <textarea name="body_markdown" rows="14" required>{{ publish_defaults.body_markdown }}</textarea>
+    </label>
+    <label>
+      Tema (economy, housing, climate, companies…)
+      <input type="text" name="topic" value="{{ publish_defaults.topic }}" maxlength="80" placeholder="economy" />
+    </label>
+    <label>
+      Tags (coma)
+      <input type="text" name="tags_csv" value="{{ publish_defaults.tags_csv }}" placeholder="macro, ipc" />
+    </label>
+    <label>
+      Resumen listado (opcional)
+      <input type="text" name="summary" value="{{ publish_defaults.summary }}" maxlength="500" />
+    </label>
+    <label>
+      Slug explícito (opcional; si vacío se deriva del título)
+      <input type="text" name="slug" value="{{ publish_defaults.slug }}" maxlength="220" />
+    </label>
+    <label>
+      Programar (ISO o datetime-local, UTC si sin zona)
+      <input type="datetime-local" name="scheduled_at" />
+    </label>
+    <label class="checkbox-row">
+      <input type="checkbox" name="save_as_draft" />
+      Guardar solo como borrador (no visible en API pública)
+    </label>
+    <button type="submit">Publicar en la web</button>
+  </form>
+  {% else %}
+  <p class="muted">Inicia sesión con rol <strong>editor</strong> (cabecera <code>x-api-key</code>) para usar este formulario.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Score y subscores</h3>
+  {% if score %}
+  <table>
+    <tbody>
+      <tr><th>Novelty</th><td>{{ score.novelty_score | fmt_decimal }}</td></tr>
+      <tr><th>Magnitude</th><td>{{ score.magnitude_score | fmt_decimal }}</td></tr>
+      <tr><th>Freshness</th><td>{{ score.freshness_score | fmt_decimal }}</td></tr>
+      <tr><th>Editorial</th><td>{{ score.editorial_score | fmt_decimal }}</td></tr>
+      <tr><th>Clarity</th><td>{{ score.clarity_score | fmt_decimal }}</td></tr>
+      <tr><th>Robustness</th><td>{{ score.robustness_score | fmt_decimal }}</td></tr>
+      <tr><th>Noise penalty</th><td>{{ score.noise_penalty | fmt_decimal }}</td></tr>
+      <tr><th>Total</th><td>{{ score.total_score | fmt_decimal }}</td></tr>
+    </tbody>
+  </table>
+  {% if score.rationale %}
+  <p><strong>Rationale:</strong> {{ score.rationale }}</p>
+  {% endif %}
+  {% else %}
+  <p class="empty-state">No hay score calculado para este candidate.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Signals asociadas</h3>
+  {% if signals %}
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Signal key</th>
+        <th>Regla</th>
+        <th>Strength</th>
+        <th>Explicacion</th>
+        <th>Creada</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for signal in signals %}
+      <tr>
+        <td>{{ signal.signal_type }}</td>
+        <td>{{ signal.signal_key }}</td>
+        <td>{{ signal.rule_id or "-" }}</td>
+        <td>{{ signal.strength | fmt_decimal }}</td>
+        <td>{{ signal.explanation }}</td>
+        <td>{{ signal.created_at | fmt_datetime }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay signals asociadas.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Cruces sugeridos</h3>
+  {% if crosses %}
+  {% for cross in crosses %}
+  <p>
+    <strong>{{ cross.left_entity }}</strong> vs <strong>{{ cross.right_entity }}</strong> - {{ cross.suggested_angle }}
+    <br />
+    <span class="muted">{{ cross.rationale }}</span>
+  </p>
+  {% endfor %}
+  {% else %}
+  <p class="empty-state">No hay cruces sugeridos para este candidate.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Draft sugerido</h3>
+  {% if draft %}
+  <p><strong>Lead neutral:</strong> {{ draft.lead_neutral or "-" }}</p>
+  <p><strong>Base paragraph:</strong> {{ draft.base_paragraph or "-" }}</p>
+  <p><strong>Analytical version:</strong> {{ draft.analytical_version or "-" }}</p>
+  <p><strong>Short version:</strong> {{ draft.short_version or "-" }}</p>
+  {% if draft.alt_headlines_json %}
+  <p><strong>Alt headlines:</strong> {{ draft.alt_headlines_json | join(" | ") }}</p>
+  {% endif %}
+  {% if draft.followup_questions_json %}
+  <p><strong>Follow-up questions:</strong> {{ draft.followup_questions_json | join(" | ") }}</p>
+  {% endif %}
+  {% if draft.warnings_json %}
+  <p><strong>Warnings:</strong> {{ draft.warnings_json | join(" | ") }}</p>
+  {% endif %}
+  {% else %}
+  <p class="empty-state">No hay draft generado para este candidate.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3>Historial editorial</h3>
+  {% if reviews %}
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Accion</th>
+        <th>Reviewer</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for review in reviews %}
+      <tr>
+        <td>{{ review.created_at | fmt_datetime }}</td>
+        <td>{{ review.action }}</td>
+        <td>{{ review.reviewer or "-" }}</td>
+        <td>{{ review.notes or "-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No hay historial editorial para este candidate.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const candidateChartPayload = {{ candidate_chart_data | tojson }};
+  if (candidateChartPayload) {
+    renderLineChart("candidate-main-chart", candidateChartPayload);
+  }
+</script>
+{% endblock %}

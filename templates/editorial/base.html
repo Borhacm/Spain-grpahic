@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "Editorial Console" }}</title>
+    <link rel="stylesheet" href="/static/editorial.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <h1>Editorial Console</h1>
+        <nav>
+          <a href="/editorial/ui/dashboard" class="{% if request.url.path.startswith('/editorial/ui/dashboard') %}active{% endif %}">Dashboard</a>
+          <a href="/editorial/ui/chart-audit" class="{% if request.url.path.startswith('/editorial/ui/chart-audit') %}active{% endif %}">Chart Audit</a>
+          <a href="/editorial/ui/queue" class="{% if request.url.path.startswith('/editorial/ui/queue') or request.url.path.startswith('/editorial/ui/candidates/') %}active{% endif %}">Queue</a>
+          <a href="/editorial/ui/signals" class="{% if request.url.path.startswith('/editorial/ui/signals') %}active{% endif %}">Signals</a>
+          <a href="/editorial/ui/published" class="{% if request.url.path.startswith('/editorial/ui/published') %}active{% endif %}">Published</a>
+          <a href="/docs">API Docs</a>
+        </nav>
+      </div>
+    </header>
+    <main class="container">
+      {% if message %}
+      <p class="alert success">{{ message }}</p>
+      {% endif %}
+      {% if error %}
+      <p class="alert error">{{ error }}</p>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+      document.body.addEventListener("htmx:afterSwap", function (evt) {
+        evt.detail.target.querySelectorAll(".sparkline-wrap[data-sparkline]").forEach(function (wrap) {
+          var raw = wrap.getAttribute("data-sparkline");
+          if (!raw || typeof renderSparkline !== "function") {
+            return;
+          }
+          try {
+            var payload = JSON.parse(raw);
+            var canvas = wrap.querySelector("canvas");
+            if (canvas) {
+              renderSparkline(canvas.id, payload);
+            }
+          } catch (e) {
+            console.warn("sparkline parse/render failed", e);
+          }
+        });
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+      function renderChart(canvasId, payload, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !payload || !payload.labels || !payload.datasets || payload.datasets.length === 0) {
+          return;
+        }
+        const palette = ["#2563eb", "#16a34a", "#dc2626", "#7c3aed", "#d97706", "#0891b2"];
+        const datasets = payload.datasets.map((dataset, index) => {
+          const fallbackColor = palette[index % palette.length];
+          const color = dataset.borderColor || fallbackColor;
+          return {
+            ...dataset,
+            borderColor: color,
+            backgroundColor: dataset.backgroundColor || color,
+            borderWidth: dataset.borderWidth || 2,
+            tension: dataset.tension ?? 0.2,
+            fill: dataset.fill ?? false,
+            pointRadius: dataset.pointRadius ?? 2,
+          };
+        });
+        new Chart(canvas, {
+          type: config.type || "line",
+          data: { labels: payload.labels, datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: config.legend !== false } },
+            scales: config.scales || {},
+          },
+        });
+      }
+
+      function renderLineChart(canvasId, payload) {
+        renderChart(canvasId, payload, { type: "line", legend: true });
+      }
+
+      function renderBarChart(canvasId, payload) {
+        renderChart(canvasId, payload, { type: "bar", legend: true });
+      }
+
+      function renderSparkline(canvasId, payload) {
+        renderChart(canvasId, {
+          labels: payload.labels,
+          datasets: [{ label: "", data: payload.values, borderColor: "#2563eb", pointRadius: 0 }],
+        }, {
+          type: "line",
+          legend: false,
+          scales: {
+            x: { display: false },
+            y: { display: false },
+          },
+        });
+      }
+    </script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

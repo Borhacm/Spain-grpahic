@@ -1,0 +1,26 @@
+<table>
+  <thead>
+    <tr>
+      <th>Pipeline</th>
+      <th>Estado</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Fetched</th>
+      <th>Inserted</th>
+      <th>Failed</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in scheduler_runs %}
+    <tr>
+      <td>{{ run.pipeline_name }}</td>
+      <td><span class="status-pill status-pill--{{ run.status_class }}">{{ run.last_status }}</span></td>
+      <td>{{ run.last_started_at | fmt_datetime }}</td>
+      <td>{{ run.last_finished_at | fmt_datetime }}</td>
+      <td>{{ run.items_fetched if run.items_fetched is not none else "-" }}</td>
+      <td>{{ run.items_inserted if run.items_inserted is not none else "-" }}</td>
+      <td>{{ run.items_failed if run.items_failed is not none else "-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
