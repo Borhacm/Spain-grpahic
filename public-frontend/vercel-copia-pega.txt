@@ -1,13 +1,11 @@
 # Vercel → bocalma → espanaendatos → Settings → Environment Variables
 
-# 1) Copia esto (nombre en una caja, valor en la otra) — listo, sin tocar nada:
-NEXT_PUBLIC_SITE_URL
-https://espanaendatos.bocal.online
-# En Vercel marca: Production (y Preview si quieres el mismo dominio en previsualizaciones).
+# Pega en STORIES_API_BASE_URL (Producción) el valor de la linea "Valor" (sin comillas, sin barra final):
+Nombre:  STORIES_API_BASE_URL
+Valor:   https://spain-grpahic-api.onrender.com
 
-# 2) Misma sección, cuando tengas el FastAPI publicado: nombre exacto
-STORIES_API_BASE_URL
-# En "Value" pega UNA sola URL: el origen que te devuelve tu host (https + dominio, sin / al final).
-# No consta en el repositorio; no puedo generarla sin tu despliegue del backend.
+# Ese host existe cuando despliegas el API en Render con el render.yaml de la raiz del repo
+# (Blueprint; servicio "spain-grpahic-api").
 
-# 3) Después: Deployments → Redeploy, o en terminal desde esta carpeta: vercel --prod
+# NEXT_PUBLIC_SITE_URL (ya deberia estar creada):
+# https://espanaendatos.bocal.online

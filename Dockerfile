@@ -5,9 +5,11 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY pyproject.toml README.md /app/
+COPY . /app
 RUN pip install --no-cache-dir .
 
-COPY . /app
+RUN chmod +x /app/scripts/render-start.sh
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render inyecta PORT (suele ser 10000); local puede usar 8000
+EXPOSE 10000
+CMD ["/app/scripts/render-start.sh"]

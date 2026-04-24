@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,6 +52,19 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = False
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_postgres_driver(cls, v: Any) -> Any:
+        if not isinstance(v, str):
+            return v
+        if "postgresql+psycopg" in v or "postgres+psycopg" in v:
+            return v
+        if v.startswith("postgresql://"):
+            return "postgresql+psycopg://" + v.removeprefix("postgresql://")
+        if v.startswith("postgres://"):
+            return "postgresql+psycopg://" + v.removeprefix("postgres://")
+        return v
 
 
 class _SettingsLoader:
