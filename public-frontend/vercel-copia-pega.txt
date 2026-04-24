@@ -1,0 +1,13 @@
+# Vercel → bocalma → espanaendatos → Settings → Environment Variables
+
+# 1) Copia esto (nombre en una caja, valor en la otra) — listo, sin tocar nada:
+NEXT_PUBLIC_SITE_URL
+https://espanaendatos.bocal.online
+# En Vercel marca: Production (y Preview si quieres el mismo dominio en previsualizaciones).
+
+# 2) Misma sección, cuando tengas el FastAPI publicado: nombre exacto
+STORIES_API_BASE_URL
+# En "Value" pega UNA sola URL: el origen que te devuelve tu host (https + dominio, sin / al final).
+# No consta en el repositorio; no puedo generarla sin tu despliegue del backend.
+
+# 3) Después: Deployments → Redeploy, o en terminal desde esta carpeta: vercel --prod
