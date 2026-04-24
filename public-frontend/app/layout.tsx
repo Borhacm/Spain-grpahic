@@ -29,18 +29,18 @@ export const metadata: Metadata = {
     default: SITE_NAME,
     template: `%s · ${SITE_NAME}`
   },
-  description: "Historias de datos sobre España: contexto, gráficos y fuentes verificables.",
+  description: "Ficha país España e historias de datos: indicadores, contexto y fuentes verificables.",
   openGraph: {
     type: "website",
     locale: "es_ES",
     siteName: SITE_NAME,
     title: SITE_NAME,
-    description: "Historias de datos sobre España."
+    description: "Ficha país e historias de datos sobre España."
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_NAME,
-    description: "Historias de datos sobre España."
+    description: "Ficha país e historias de datos sobre España."
   },
   alternates: {
     canonical: "/",
@@ -57,9 +57,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="shell">
           <header className="site-header">
             <div className="site-header__inner">
-              <Link href="/" className="site-header__brand font-display">
-                <span className="site-header__logotype">{SITE_NAME}</span>
-              </Link>
+              <div className="site-header__top">
+                <Link href="/" className="site-header__brand font-display">
+                  <span className="site-header__logotype">{SITE_NAME}</span>
+                </Link>
+                <nav className="site-header__nav" aria-label="Principal">
+                  <Link href="/historias">Historias</Link>
+                </nav>
+              </div>
               <p className="site-header__tagline">Datos claros sobre economía, clima, empresas y territorio.</p>
             </div>
           </header>
